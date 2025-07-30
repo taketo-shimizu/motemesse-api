@@ -1,6 +1,6 @@
-# モテメッセ API
+# モテメッセ API (LangChain専用)
 
-FastAPIを使用したモテメッセのバックエンドAPI
+FastAPIを使用したモテメッセのLangChain処理専用バックエンドAPI
 
 ## セットアップ
 
@@ -15,24 +15,31 @@ pipenv shell
 python main.py
 ```
 
+**注意**: データベース操作は`motemesse-front`リポジトリで管理されています。
+
 ## 技術スタック
 
 - FastAPI
 - Python 3.11
 - Pipenv
-- PostgreSQL + pgvector
+- LangChain (TODO: 実装予定)
 - JWT認証
-- SQLAlchemy
 - Pydantic
 
 ## ディレクトリ構造
 
 ```
-service/
-├── app/
-│   ├── api/        # APIエンドポイント
-│   └── database/   # データベース関連
-└── modules/        # 共通モジュール
+.
+├── main.py              # FastAPIメインファイル
+├── Pipfile              # Python依存関係
+├── service/
+│   ├── app/
+│   │   └── api/        # APIエンドポイント
+│   │       ├── auth_routes.py      # 認証関連
+│   │       ├── general_routes.py   # 一般的なエンドポイント
+│   │       └── langchain_routes.py # LangChain処理エンドポイント
+│   └── modules/        # 共通モジュール（認証ミドルウェア等）
+└── .env.sample          # 環境変数サンプル
 ```
 
 ## 環境変数

@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from service.app.api.auth_routes import router as auth_router
+from service.app.api.general_routes import router as general_router
+from service.app.api.langchain_routes import router as langchain_router
 
 load_dotenv()
 
@@ -22,17 +25,14 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+# ルーターを追加
+app.include_router(auth_router)
+app.include_router(general_router)
+app.include_router(langchain_router)
+
 @app.get('/')
 def read_root():
     return {'message': 'Welcome to モテメッセ API'}
-
-@app.get('/health')
-def health_check():
-    return {'status': 'healthy', 'service': 'モテメッセ API'}
-
-@app.get('/api/hello')
-def hello_world():
-    return {'message': 'Hello World from モテメッセ API'}
 
 if __name__ == '__main__':
     import uvicorn
