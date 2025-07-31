@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from service.app.api.auth_routes import router as auth_router
 from service.app.api.general_routes import router as general_router
 from service.app.api.langchain_routes import router as langchain_router
 
@@ -26,7 +25,6 @@ app.add_middleware(
 )
 
 # ルーターを追加
-app.include_router(auth_router)
 app.include_router(general_router)
 app.include_router(langchain_router)
 
