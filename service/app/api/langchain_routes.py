@@ -74,14 +74,36 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
         if not target:
             raise HTTPException(status_code=404, detail="Target not found")
         
+        
+        # データベースから会話履歴を取得
+        conversation = crud.get_conversation(db, user_id=user_id, target_id=target_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        print(user.tone, 'user.tone')
+        
+        # user.toneを文字列に変換
+        tone_mapping = {
+            0: "敬語",
+            1: "タメ口", 
+        }
+        user_tone_text = tone_mapping.get(user.tone, "敬語")
+        print(user_tone_text, 'user_tone_text')
+        
         # 2. LangChainでプロンプトを構築
         output_parser = PydanticOutputParser(pydantic_object=ReplyResponse)
         
         # メッセージの文字数を計算
         message_length = len(message)
         
+        # 会話履歴の整形（直近10件）
+        history_items = conversation[-10:] if len(conversation) > 10 else conversation
+        conversation_history_text = "\n".join([
+            f"彼女: {c.female_message}\nあなた: {c.male_reply}" for c in history_items
+        ])
+        
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """あなたは恋愛コミュニケーションのアドバイザーです。
+            ("system", """あなたは男性ユーザーがマッチングアプリでデートアポイントメントを獲得するための返信候補を生成するAIです。
             
 ユーザー情報:
 - 名前: {user_name}
@@ -121,26 +143,62 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
 - 結婚に対する意思: {target_marriage_intention}
 - 自己紹介: {target_self_introduction}
 
-受信メッセージの文字数: {message_length}文字
-
-相手の女性から送られてきたメッセージに対して、自然で魅力的な返信を3つ生成してください。
-返信は以下の点を考慮してください：
-1. 相手のプロフィール情報（職業、趣味、居住地、ライフスタイルなど）を考慮した内容
-2. 関係を深められるような内容
-3. 自然な会話の流れ
-4. 適度に親しみやすさを表現
-5. ユーザーのプロフィール情報も活かした返信
-6. 共通点があれば自然に触れる
-7. メッセージの文字数に応じた適切な長さの返信を生成：
-   - 10文字以下: 短く簡潔な返信（5-15文字程度）
-   - 11-30文字: 適度な長さの返信（15-40文字程度）
-   - 31-60文字: しっかりとした返信（30-80文字程度）
-   - 61文字以上: 丁寧で詳細な返信（50-120文字程度）
-8. 受信したメッセージの時制と挨拶に合わせた返信：
-   - 「おはよう」「こんにちは」「こんばんは」などの挨拶が含まれていれば、返信にも同じ時制の挨拶を含める
-   - 「今日は」「昨日」「明日」などの時制表現に適切に対応した返信をする
+## 基本方針
+以下の実証されたテクニックに基づき、自然で効果的な返信を3種類（カジュアル・丁寧・ユーモア）生成してください。
+口調は: {user_tone}に合わせて生成してください。
+## 核心戦略：4段階アプローチ
+1. **プロフィール要素の具体的な拾い上げ**
+2. **共感と軽い自己開示による親近感構築**
+3. **場所・活動話題への自然な誘導**
+4. **具体的なデート提案（2択形式）**
+## 返信生成の重要原則
+### 【初回メッセージ対応】
+- **質問は控えめに**: 相手に負担をかけない簡潔な反応
+- **記号・顔文字は最小限**: 1メッセージあたり最大2個まで
+- **承諾ベース**: 「○○について話せたら嬉しいです」形式
+- **誠実さ重視**: 奇策より信頼感を優先
+### 【会話展開テクニック】
+- **プロフィール深掘り**: 趣味・関心事の具体的詳細を引き出す
+- **場所情報収集**: よく行く場所・職場エリア・活動範囲を自然に聞く
+- **共通点アピール**: 「僕も○○好きで」という軽い自己開示
+- **参加感創出**: 相手の意見や好みを尊重する姿勢
+### 【デート誘導戦略】
+- **3-5通目で提案**: メッセージは親睦でなくアポ獲得手段
+- **場所話題から直結**: 「○○(場所)の△△(店/スポット)一緒に行きませんか？」
+- **2択日程提示**: 「土曜か日曜なら空いてますが、どちらがご都合よろしいですか？」
+- **段取り力アピール**: 「お店調べておきます」「予約しておきます」
+### 【相手タイプ別アプローチ】
+**カフェ・インテリア系女性**
+- 内装・雰囲気への興味を示す
+- 写真映えスポットの情報交換
+- 落ち着いた昼カフェデートを提案
+**アクティブ・スポーツ系女性** 
+- 体験談での盛り上がりを重視
+- スポーツバー・フェス等の活気ある場所を選択
+- 夜の飲みデートを中心に提案
+**インドア・読書系女性**
+- 相手の状況（就活等）への配慮を示す
+- 静かで落ち着ける環境を優先
+- カフェでの軽いお茶デートから開始
+**ゲーム・アニメ系女性**
+- オンライン交流を経由したステップアプローチ
+- 共通の推しキャラ・作品での盛り上がり
+- オフライン移行は段階的に提案
+### 【会話継続の要点】
+- **LINE交換は後回し**: 初デート後まで基本的に不要
+- **減点回避**: 加点より失点を防ぐ安全運転
+- **相手ペース尊重**: 押し付けがましさを避ける
+## 生成指示
+女性からのメッセージ内容と設定されたプロフィール情報を基に：
+1. **メッセージの意図・感情を分析**
+2. **プロフィール情報から関連要素を抽出** 
+3. **現在の会話段階を判定**（初期/展開/アポ打診段階）
+4. **最適な返信戦略を選択**
+5. **3種類の返信候補を生成**（各150文字以内）
+各候補は自然で実践的、かつアポイントメント獲得という最終目標に向けた戦略的なものとしてください。
 
 {format_instructions}"""),
+            ("system", "これまでの会話履歴:\n{conversation_history}"),
             ("human", "女性からのメッセージ: {message}")
         ])
         
@@ -176,6 +234,7 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             "user_living_with": user.living_with or "不明",
             "user_marriage_intention": user.marriage_intention or "不明",
             "user_self_introduction": getattr(user, 'self_introduction', None) or "情報なし",
+            "user_tone": user_tone_text,
             "target_name": target.name,
             "target_age": f"{target.age}歳" if target.age else "不明",
             "target_job": target.job or "不明",
@@ -195,8 +254,11 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             "target_self_introduction": getattr(target, 'self_introduction', None) or "情報なし",
             "message": message,
             "message_length": message_length,
+            "conversation_history": conversation_history_text,
             "format_instructions": output_parser.get_format_instructions()
         })
+
+        print(user.smoking, 'user')
         
         # 5. レスポンスを返す
         return GenerateReplyResponse(
@@ -238,6 +300,15 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
         target = crud.get_target_by_id(db, target_id=target_id)
         if not target:
             raise HTTPException(status_code=404, detail="Target not found")
+        
+        # user.toneを文字列に変換
+        tone_mapping = {
+            0: "丁寧な敬語",
+            1: "丁寧なタメ口", 
+            2: "カジュアルな敬語",
+            3: "カジュアルなタメ口"
+        }
+        user_tone_text = tone_mapping.get(user.tone, "丁寧な敬語")
         
         # 2. LangChainでプロンプトを構築（初回挨拶専用）
         output_parser = PydanticOutputParser(pydantic_object=ReplyResponse)

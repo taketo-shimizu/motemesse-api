@@ -21,6 +21,14 @@ def get_user_targets(db: Session, user_id: int):
     """ユーザーIDから全てのターゲット情報を取得"""
     return db.query(models.Target).filter(models.Target.user_id == user_id).all()
 
+def get_conversation(db: Session, user_id: int, target_id: int):
+    """ユーザーIDとターゲットIDから会話履歴を取得"""
+    return db.query(models.Conversation).filter(
+        models.Conversation.user_id == user_id,
+        models.Conversation.target_id == target_id
+    ).order_by(models.Conversation.created_at.asc()).all()
+
+
 
 def create_user(db: Session, auth0_id: str, name: str, email: str, **kwargs):
     """新規ユーザーを作成"""

@@ -29,6 +29,7 @@ class User(Base):
     living_with = Column(String, nullable=True)
     marriage_intention = Column(String, nullable=True)
     self_introduction = Column(Text, nullable=True)
+    tone = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
