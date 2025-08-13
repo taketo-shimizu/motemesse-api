@@ -27,7 +27,6 @@ class ReplyRequest(BaseModel):
 class InitialGreetingRequest(BaseModel):
     userId: int
     selectedTargetId: int
-    type: str
 
 
 class Reply(BaseModel):
@@ -287,9 +286,8 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
         # リクエストパラメータを使用
         user_id = request.userId
         target_id = request.selectedTargetId
-        tone_style = request.type
         
-        print(f"リクエストパラメータ: userId={user_id}, selectedTargetId={target_id}, type={tone_style}")
+        print(f"リクエストパラメータ: userId={user_id}, selectedTargetId={target_id}")
         
         # データベースからユーザー情報を取得
         user = crud.get_user_by_id(db, user_id=user_id)
@@ -303,25 +301,13 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
         
         # user.toneを文字列に変換
         tone_mapping = {
-            0: "丁寧な敬語",
-            1: "丁寧なタメ口", 
-            2: "カジュアルな敬語",
-            3: "カジュアルなタメ口"
+            0: "敬語",
+            1: "タメ口", 
         }
-        user_tone_text = tone_mapping.get(user.tone, "丁寧な敬語")
+        user_tone_text = tone_mapping.get(user.tone, "敬語")
         
         # 2. LangChainでプロンプトを構築（初回挨拶専用）
         output_parser = PydanticOutputParser(pydantic_object=ReplyResponse)
-        
-        # トーンスタイルの説明を作成
-        tone_descriptions = {
-            "軽いノリのタメ口": "フレンドリーでカジュアルな感じで、相手を〜ちゃん/〜くんと呼び、タメ口で話す。絵文字や！を適度に使い、親しみやすい雰囲気を出す。",
-            "真面目なタメ口": "丁寧だが堅苦しくない感じで、タメ口を使いながらも落ち着いたトーン。相手の名前を呼び捨てにし、誠実な印象を与える。",
-            "軽いノリの敬語": "敬語を使いながらも親しみやすい雰囲気。〜さんと呼び、です/ます調を使いつつ、絵文字や！で明るさを演出する。",
-            "真面目な敬語": "礼儀正しく真摯な態度で、きちんとした敬語を使う。〜さんと呼び、落ち着いた大人の雰囲気を出す。"
-        }
-        
-        tone_description = tone_descriptions.get(tone_style, tone_descriptions["軽いノリの敬語"])
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", """あなたは恋愛コミュニケーションのアドバイザーです。初回挨拶メッセージの専門家として、魅力的な第一印象を与える挨拶を作成してください。
@@ -364,9 +350,6 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
 - 結婚に対する意思: {target_marriage_intention}
 - 自己紹介: {target_self_introduction}
 
-トーンスタイル: {tone_style}
-トーンの説明: {tone_description}
-
 初回挨拶メッセージを3つ生成してください。
 以下の点を考慮してください：
 1. 第一印象が良く、親しみやすい挨拶
@@ -377,7 +360,7 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
 6. 共通点があれば自然に触れる
 7. 長すぎず短すぎない適切な長さ（30-80文字程度）
 8. 相手のライフスタイルに合わせたトーンで作成
-9. 指定されたトーンスタイル（{tone_style}）を厳密に守って作成
+9. 口調は: {user_tone}に合わせて生成してください。
 
 {format_instructions}"""),
             ("human", "初回挨拶メッセージを生成してください。")
@@ -432,8 +415,7 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
             "target_living_with": target.living_with or "不明",
             "target_marriage_intention": target.marriage_intention or "不明",
             "target_self_introduction": getattr(target, 'self_introduction', None) or "情報なし",
-            "tone_style": tone_style,
-            "tone_description": tone_description,
+            "user_tone": user_tone_text,
             "format_instructions": output_parser.get_format_instructions()
         })
         
@@ -447,7 +429,7 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
                 "userAge": user.age,
                 "targetAge": target.age,
                 "messageType": "initial_greeting",
-                "toneStyle": tone_style
+                "toneStyle": user_tone_text
             }
         )
         
