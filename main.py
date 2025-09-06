@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from service.app.api.general_routes import router as general_router
 from service.app.api.langchain_routes import router as langchain_router
+from service.app.api.vision_routes import router as vision_router
 
 load_dotenv()
 
@@ -29,6 +30,7 @@ app.add_middleware(
 # ルーターを追加
 app.include_router(general_router)
 app.include_router(langchain_router)
+app.include_router(vision_router)
 
 @app.get('/')
 def read_root():

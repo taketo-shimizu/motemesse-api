@@ -15,6 +15,57 @@ from ...modules import crud
 
 load_dotenv()
 
+
+def format_user_profile(user) -> str:
+    """ユーザープロフィール情報を整形"""
+    return f"""- 名前: {user.name or "ユーザー"}
+- 年齢: {f"{user.age}歳" if user.age else "不明"}
+- 職業: {user.job or "不明"}
+- 趣味: {user.hobby or "不明"}
+- 居住地: {user.residence or "不明"}
+- 勤務地: {user.work_place or "不明"}
+- 血液型: {user.blood_type or "不明"}
+- 学歴: {user.education or "不明"}
+- 仕事の種類: {user.work_type or "不明"}
+- 休日: {user.holiday or "不明"}
+- 結婚歴: {user.marriage_history or "不明"}
+- 子供の有無: {user.has_children or "不明"}
+- 煙草: {user.smoking or "不明"}
+- お酒: {user.drinking or "不明"}
+- 一緒に住んでいる人: {user.living_with or "不明"}
+- 結婚に対する意思: {user.marriage_intention or "不明"}
+- 自己紹介: {getattr(user, 'self_introduction', None) or "情報なし"}"""
+
+
+def format_target_profile(target) -> str:
+    """ターゲットプロフィール情報を整形"""
+    return f"""- 名前: {target.name}
+- 年齢: {f"{target.age}歳" if target.age else "不明"}
+- 職業: {target.job or "不明"}
+- 趣味: {target.hobby or "不明"}
+- 居住地: {target.residence or "不明"}
+- 勤務地: {target.work_place or "不明"}
+- 血液型: {target.blood_type or "不明"}
+- 学歴: {target.education or "不明"}
+- 仕事の種類: {target.work_type or "不明"}
+- 休日: {target.holiday or "不明"}
+- 結婚歴: {target.marriage_history or "不明"}
+- 子供の有無: {target.has_children or "不明"}
+- 煙草: {target.smoking or "不明"}
+- お酒: {target.drinking or "不明"}
+- 一緒に住んでいる人: {target.living_with or "不明"}
+- 結婚に対する意思: {target.marriage_intention or "不明"}
+- 自己紹介: {getattr(target, 'self_introduction', None) or "情報なし"}"""
+
+
+def get_tone_text(tone_value) -> str:
+    """トーン値を文字列に変換"""
+    tone_mapping = {
+        0: "敬語",
+        1: "タメ口", 
+    }
+    return tone_mapping.get(tone_value, "敬語")
+
 router = APIRouter(prefix="/api/langchain", tags=["langchain"])
 
 
@@ -82,11 +133,7 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
         print(user.tone, 'user.tone')
         
         # user.toneを文字列に変換
-        tone_mapping = {
-            0: "敬語",
-            1: "タメ口", 
-        }
-        user_tone_text = tone_mapping.get(user.tone, "敬語")
+        user_tone_text = get_tone_text(user.tone)
         print(user_tone_text, 'user_tone_text')
         
         # 2. LangChainでプロンプトを構築
@@ -105,42 +152,10 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             ("system", """あなたは男性ユーザーがマッチングアプリでデートアポイントメントを獲得するための返信候補を生成するAIです。
             
 ユーザー情報:
-- 名前: {user_name}
-- 年齢: {user_age}
-- 職業: {user_job}
-- 趣味: {user_hobby}
-- 居住地: {user_residence}
-- 勤務地: {user_workplace}
-- 血液型: {user_blood_type}
-- 学歴: {user_education}
-- 仕事の種類: {user_work_type}
-- 休日: {user_holiday}
-- 結婚歴: {user_marriage_history}
-- 子供の有無: {user_has_children}
-- 煙草: {user_smoking}
-- お酒: {user_drinking}
-- 一緒に住んでいる人: {user_living_with}
-- 結婚に対する意思: {user_marriage_intention}
-- 自己紹介: {user_self_introduction}
+{user_profile}
 
 相手の女性情報:
-- 名前: {target_name}
-- 年齢: {target_age}
-- 職業: {target_job}
-- 趣味: {target_hobby}
-- 居住地: {target_residence}
-- 勤務地: {target_workplace}
-- 血液型: {target_blood_type}
-- 学歴: {target_education}
-- 仕事の種類: {target_work_type}
-- 休日: {target_holiday}
-- 結婚歴: {target_marriage_history}
-- 子供の有無: {target_has_children}
-- 煙草: {target_smoking}
-- お酒: {target_drinking}
-- 一緒に住んでいる人: {target_living_with}
-- 結婚に対する意思: {target_marriage_intention}
-- 自己紹介: {target_self_introduction}
+{target_profile}
 
 ## 基本方針
 以下の実証されたテクニックに基づき、自然で効果的な返信を3種類（カジュアル・丁寧・ユーモア）生成してください。
@@ -151,11 +166,6 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
 3. **場所・活動話題への自然な誘導**
 4. **具体的なデート提案（2択形式）**
 ## 返信生成の重要原則
-### 【初回メッセージ対応】
-- **質問は控えめに**: 相手に負担をかけない簡潔な反応
-- **記号・顔文字は最小限**: 1メッセージあたり最大2個まで
-- **承諾ベース**: 「○○について話せたら嬉しいです」形式
-- **誠実さ重視**: 奇策より信頼感を優先
 ### 【会話展開テクニック】
 - **プロフィール深掘り**: 趣味・関心事の具体的詳細を引き出す
 - **場所情報収集**: よく行く場所・職場エリア・活動範囲を自然に聞く
@@ -207,8 +217,8 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         llm = ChatOpenAI(
-            model="gpt-4o",
-            temperature=0.7,
+            model="gpt-4.1",
+            temperature=1.0,
             api_key=api_key
         )
         
@@ -216,41 +226,9 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
         chain = prompt | llm | output_parser
         
         result = chain.invoke({
-            "user_name": user.name or "ユーザー",
-            "user_age": f"{user.age}歳" if user.age else "不明",
-            "user_job": user.job or "不明",
-            "user_hobby": user.hobby or "不明",
-            "user_residence": user.residence or "不明",
-            "user_workplace": user.work_place or "不明",
-            "user_blood_type": user.blood_type or "不明",
-            "user_education": user.education or "不明",
-            "user_work_type": user.work_type or "不明",
-            "user_holiday": user.holiday or "不明",
-            "user_marriage_history": user.marriage_history or "不明",
-            "user_has_children": user.has_children or "不明",
-            "user_smoking": user.smoking or "不明",
-            "user_drinking": user.drinking or "不明",
-            "user_living_with": user.living_with or "不明",
-            "user_marriage_intention": user.marriage_intention or "不明",
-            "user_self_introduction": getattr(user, 'self_introduction', None) or "情報なし",
+            "user_profile": format_user_profile(user),
+            "target_profile": format_target_profile(target),
             "user_tone": user_tone_text,
-            "target_name": target.name,
-            "target_age": f"{target.age}歳" if target.age else "不明",
-            "target_job": target.job or "不明",
-            "target_hobby": target.hobby or "不明",
-            "target_residence": target.residence or "不明",
-            "target_workplace": target.work_place or "不明",
-            "target_blood_type": target.blood_type or "不明",
-            "target_education": target.education or "不明",
-            "target_work_type": target.work_type or "不明",
-            "target_holiday": target.holiday or "不明",
-            "target_marriage_history": target.marriage_history or "不明",
-            "target_has_children": target.has_children or "不明",
-            "target_smoking": target.smoking or "不明",
-            "target_drinking": target.drinking or "不明",
-            "target_living_with": target.living_with or "不明",
-            "target_marriage_intention": target.marriage_intention or "不明",
-            "target_self_introduction": getattr(target, 'self_introduction', None) or "情報なし",
             "message": message,
             "message_length": message_length,
             "conversation_history": conversation_history_text,
@@ -300,11 +278,7 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
             raise HTTPException(status_code=404, detail="Target not found")
         
         # user.toneを文字列に変換
-        tone_mapping = {
-            0: "敬語",
-            1: "タメ口", 
-        }
-        user_tone_text = tone_mapping.get(user.tone, "敬語")
+        user_tone_text = get_tone_text(user.tone)
         
         # 2. LangChainでプロンプトを構築（初回挨拶専用）
         output_parser = PydanticOutputParser(pydantic_object=ReplyResponse)
@@ -313,44 +287,17 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
             ("system", """あなたは恋愛コミュニケーションのアドバイザーです。初回挨拶メッセージの専門家として、魅力的な第一印象を与える挨拶を作成してください。
             
 ユーザー情報:
-- 名前: {user_name}
-- 年齢: {user_age}
-- 職業: {user_job}
-- 趣味: {user_hobby}
-- 居住地: {user_residence}
-- 勤務地: {user_workplace}
-- 血液型: {user_blood_type}
-- 学歴: {user_education}
-- 仕事の種類: {user_work_type}
-- 休日: {user_holiday}
-- 結婚歴: {user_marriage_history}
-- 子供の有無: {user_has_children}
-- 煙草: {user_smoking}
-- お酒: {user_drinking}
-- 一緒に住んでいる人: {user_living_with}
-- 結婚に対する意思: {user_marriage_intention}
-- 自己紹介: {user_self_introduction}
+{user_profile}
 
 相手の女性情報:
-- 名前: {target_name}
-- 年齢: {target_age}
-- 職業: {target_job}
-- 趣味: {target_hobby}
-- 居住地: {target_residence}
-- 勤務地: {target_workplace}
-- 血液型: {target_blood_type}
-- 学歴: {target_education}
-- 仕事の種類: {target_work_type}
-- 休日: {target_holiday}
-- 結婚歴: {target_marriage_history}
-- 子供の有無: {target_has_children}
-- 煙草: {target_smoking}
-- お酒: {target_drinking}
-- 一緒に住んでいる人: {target_living_with}
-- 結婚に対する意思: {target_marriage_intention}
-- 自己紹介: {target_self_introduction}
+{target_profile}
 
 初回挨拶メッセージを3つ生成してください。
+### 【初回メッセージ対応】
+- **質問は控えめに**: 相手に負担をかけない簡潔な反応
+- **記号・顔文字は最小限**: 1メッセージあたり最大2個まで
+- **承諾ベース**: 「○○について話せたら嬉しいです」形式
+- **誠実さ重視**: 奇策より信頼感を優先
 以下の点を考慮してください：
 1. 第一印象が良く、親しみやすい挨拶
 2. 相手のプロフィール情報（職業、趣味、居住地、ライフスタイルなど）に関連した話題を自然に含める
@@ -372,8 +319,8 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         llm = ChatOpenAI(
-            model="gpt-4o",
-            temperature=0.7,
+            model="gpt-4.1",
+            temperature=1.0,
             api_key=api_key
         )
         
@@ -381,40 +328,8 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
         chain = prompt | llm | output_parser
         
         result = chain.invoke({
-            "user_name": user.name or "ユーザー",
-            "user_age": f"{user.age}歳" if user.age else "不明",
-            "user_job": user.job or "不明",
-            "user_hobby": user.hobby or "不明",
-            "user_residence": user.residence or "不明",
-            "user_workplace": user.work_place or "不明",
-            "user_blood_type": user.blood_type or "不明",
-            "user_education": user.education or "不明",
-            "user_work_type": user.work_type or "不明",
-            "user_holiday": user.holiday or "不明",
-            "user_marriage_history": user.marriage_history or "不明",
-            "user_has_children": user.has_children or "不明",
-            "user_smoking": user.smoking or "不明",
-            "user_drinking": user.drinking or "不明",
-            "user_living_with": user.living_with or "不明",
-            "user_marriage_intention": user.marriage_intention or "不明",
-            "user_self_introduction": getattr(user, 'self_introduction', None) or "情報なし",
-            "target_name": target.name,
-            "target_age": f"{target.age}歳" if target.age else "不明",
-            "target_job": target.job or "不明",
-            "target_hobby": target.hobby or "不明",
-            "target_residence": target.residence or "不明",
-            "target_workplace": target.work_place or "不明",
-            "target_blood_type": target.blood_type or "不明",
-            "target_education": target.education or "不明",
-            "target_work_type": target.work_type or "不明",
-            "target_holiday": target.holiday or "不明",
-            "target_marriage_history": target.marriage_history or "不明",
-            "target_has_children": target.has_children or "不明",
-            "target_smoking": target.smoking or "不明",
-            "target_drinking": target.drinking or "不明",
-            "target_living_with": target.living_with or "不明",
-            "target_marriage_intention": target.marriage_intention or "不明",
-            "target_self_introduction": getattr(target, 'self_introduction', None) or "情報なし",
+            "user_profile": format_user_profile(user),
+            "target_profile": format_target_profile(target),
             "user_tone": user_tone_text,
             "format_instructions": output_parser.get_format_instructions()
         })
