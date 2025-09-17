@@ -36,6 +36,13 @@ app.include_router(vision_router)
 def read_root():
     return {'message': 'Welcome to モテメッセ API'}
 
+@app.get('/health')
+def health_check():
+    """
+    Render用ヘルスチェックエンドポイント
+    """
+    return {"status": "healthy", "service": "motemesse-api"}
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host='0.0.0.0', port=8000)
