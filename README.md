@@ -58,3 +58,17 @@ python main.py
 pipenv run python main.py     # サーバー起動
 pipenv run mypy .            # 型チェック
 ```
+
+## 📄 ライセンス / License
+
+© 2025 清水 威斗 (Taketo Shimizu). All rights reserved.
+
+本リポジトリに含まれるソースコード、デザイン、その他のリソースは、著作権によって保護されています。  
+本サービスは公開運用を目的としたプロダクトであり、いかなる形式でも、  
+**無断での複製・再利用・派生物の作成・再配布・商用利用を禁止**します。
+
+This software is a proprietary project intended for public release as a product.  
+All content in this repository is protected by copyright.  
+**Unauthorized copying, reproduction, redistribution, commercial use, or derivative works are strictly prohibited.**
+
+If you wish to use any part of this code, please contact the author.
