@@ -68,8 +68,15 @@ async def analyze_chat_screenshot(
   ]
 }
 
-注意事項：
-- 吹き出しの位置で送信者を判定（左側=female、右側=male）
+重要な判定ルール：
+- 吹き出しの位置で送信者を判定します
+  - 左側の吹き出し = "female"（相手の女性）
+  - 右側の吹き出し = "male"（自分/男性ユーザー）
+- これは男性ユーザー視点のチャット画面です
+- 最初のメッセージが右側にある場合、それは男性（自分）から送った挨拶メッセージです
+- マッチングアプリでは男性から最初に挨拶を送ることも一般的です
+
+その他の注意事項：
 - 複数の画像がある場合は、時系列順（上から下）に統合
 - 改行も保持
 - 絵文字も正確に抽出
@@ -120,6 +127,8 @@ async def analyze_chat_screenshot(
             ExtractedMessage(**msg) for msg in extracted_data.get('messages', [])
         ]
 
+        print(extracted_messages, 'extracted_messages')
+
         # 既存の会話履歴を取得
         existing_conversations = crud.get_conversation(
             db,
@@ -147,25 +156,57 @@ async def analyze_chat_screenshot(
         # 新規メッセージをデータベースに保存
         saved_count = 0
         last_female_message = ''
+        last_male_message = ''
 
         for msg in new_messages:
             if msg.sender == 'female':
-                # 女性のメッセージは一時保存
-                last_female_message = msg.text
-            elif msg.sender == 'male' and last_female_message:
-                # 男性の返信と女性のメッセージをペアで保存
-                crud.create_conversation(
-                    db,
-                    user_id=request.userId,
-                    target_id=request.targetId,
-                    female_message=last_female_message,
-                    male_reply=msg.text
-                )
-                saved_count += 1
-                last_female_message = ''  # リセット
+                # 前に男性のメッセージがある場合、先に保存
+                if last_male_message:
+                    crud.create_conversation(
+                        db,
+                        user_id=request.userId,
+                        target_id=request.targetId,
+                        female_message="",  # 女性メッセージなしで男性の初回挨拶
+                        male_reply=last_male_message
+                    )
+                    saved_count += 1
+                    last_male_message = ''
 
-        # 最後に女性のメッセージが残っている場合（返信待ち）
-        pending_female_message = last_female_message if last_female_message else None
+                # 女性のメッセージを一時保存
+                last_female_message = msg.text
+
+            elif msg.sender == 'male':
+                if last_female_message:
+                    # 女性のメッセージに対する男性の返信
+                    crud.create_conversation(
+                        db,
+                        user_id=request.userId,
+                        target_id=request.targetId,
+                        female_message=last_female_message,
+                        male_reply=msg.text
+                    )
+                    saved_count += 1
+                    last_female_message = ''
+                else:
+                    # 男性からの初回メッセージ（女性の返信待ち）
+                    last_male_message = msg.text
+
+        # 最後に未保存のメッセージがある場合
+        pending_female_message = None
+        if last_female_message:
+            # 女性のメッセージが残っている（男性の返信待ち）
+            # DBには保存せず、フロントエンドで返信候補を表示するために返す
+            pending_female_message = last_female_message
+        elif last_male_message:
+            # 男性のメッセージが残っている（女性の返信待ち）
+            crud.create_conversation(
+                db,
+                user_id=request.userId,
+                target_id=request.targetId,
+                female_message="",
+                male_reply=last_male_message
+            )
+            saved_count += 1
 
         return ChatScreenshotResponse(
             status="success",
