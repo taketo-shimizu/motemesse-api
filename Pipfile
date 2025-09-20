@@ -15,6 +15,7 @@ pyjwt = "*"
 requests = "*"
 langchain = "*"
 langchain-openai = "*"
+python-multipart = "*"
 openai = "*"
 
 [dev-packages]
