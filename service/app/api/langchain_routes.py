@@ -73,6 +73,7 @@ class ReplyRequest(BaseModel):
     userId: int
     selectedTargetId: int
     message: str
+    intent: Optional[str] = None  # 'continue' or 'appointment'
 
 
 class InitialGreetingRequest(BaseModel):
@@ -125,28 +126,31 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Target not found")
         
         
-        # データベースから会話履歴を取得
+        # データベースから会話履歴を取得（ない場合は空リスト）
         conversation = crud.get_conversation(db, user_id=user_id, target_id=target_id)
         if not conversation:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        
+            conversation = []  # 会話履歴がない場合は空リストを使用
+
         print(user.tone, 'user.tone')
-        
+
         # user.toneを文字列に変換
         user_tone_text = get_tone_text(user.tone)
         print(user_tone_text, 'user_tone_text')
-        
+
         # 2. LangChainでプロンプトを構築
         output_parser = PydanticOutputParser(pydantic_object=ReplyResponse)
-        
+
         # メッセージの文字数を計算
         message_length = len(message)
-        
+
         # 会話履歴の整形（直近10件）
-        history_items = conversation[-10:] if len(conversation) > 10 else conversation
-        conversation_history_text = "\n".join([
-            f"彼女: {c.female_message}\nあなた: {c.male_reply}" for c in history_items
-        ])
+        if conversation:
+            history_items = conversation[-10:] if len(conversation) > 10 else conversation
+            conversation_history_text = "\n".join([
+                f"彼女: {c.female_message}\nあなた: {c.male_reply}" for c in history_items
+            ])
+        else:
+            conversation_history_text = "（これが最初のメッセージです）"
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", """あなたは男性ユーザーがマッチングアプリでデートアポイントメントを獲得するための返信候補を生成するAIです。
@@ -203,7 +207,14 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
 2. **プロフィール情報から関連要素を抽出** 
 3. **現在の会話段階を判定**（初期/展開/アポ打診段階）
 4. **最適な返信戦略を選択**
-5. **3種類の返信候補を生成**（各150文字以内）
+5. **3種類の返信候補を生成**（各100文字以内）
+
+## 重要な制約（必ず守ること）
+- **疑問文の絶対的制限**: 各返信候補内で「？」を使用できるのは最大1回のみです
+- 3つの候補のうち、少なくとも2つは「？」を含まない文章にしてください
+- 「〜かない？」「〜どう？」「〜いつが良い？」などの質問形式も「？」1回にカウントします
+- 複数の質問を1つの文章に詰め込むのは禁止です（例：「カフェ行かない？土日どっちが良い？」は違反）
+
 各候補は自然で実践的、かつアポイントメント獲得という最終目標に向けた戦略的なものとしてください。
 
 {format_instructions}"""),
