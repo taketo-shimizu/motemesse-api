@@ -164,6 +164,7 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
 ## 基本方針
 以下の実証されたテクニックに基づき、自然で効果的な返信を3種類（カジュアル・丁寧・ユーモア）生成してください。
 口調は: {user_tone}に合わせて生成してください。
+
 ## 核心戦略：4段階アプローチ
 1. **プロフィール要素の具体的な拾い上げ**
 2. **共感と軽い自己開示による親近感構築**
@@ -207,13 +208,7 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
 2. **プロフィール情報から関連要素を抽出** 
 3. **現在の会話段階を判定**（初期/展開/アポ打診段階）
 4. **最適な返信戦略を選択**
-5. **3種類の返信候補を生成**（各100文字以内）
-
-## 重要な制約（必ず守ること）
-- **疑問文の絶対的制限**: 各返信候補内で「？」を使用できるのは最大1回のみです
-- 3つの候補のうち、少なくとも2つは「？」を含まない文章にしてください
-- 「〜かない？」「〜どう？」「〜いつが良い？」などの質問形式も「？」1回にカウントします
-- 複数の質問を1つの文章に詰め込むのは禁止です（例：「カフェ行かない？土日どっちが良い？」は違反）
+5. **3種類の返信候補を生成**（各150文字以内）
 
 各候補は自然で実践的、かつアポイントメント獲得という最終目標に向けた戦略的なものとしてください。
 
@@ -222,13 +217,13 @@ async def generate_reply(request: ReplyRequest, db: Session = Depends(get_db)):
             ("human", "女性からのメッセージ: {message}")
         ])
         
-        # 3. OpenAI GPT-4oで返信生成
+        # 3. OpenAI GPT-4.1-miniで返信生成
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         llm = ChatOpenAI(
-            model="gpt-4.1",
+            model="gpt-4.1-mini",
             temperature=1.0,
             api_key=api_key
         )
@@ -324,13 +319,13 @@ async def generate_initial_greeting(request: InitialGreetingRequest, db: Session
             ("human", "初回挨拶メッセージを生成してください。")
         ])
         
-        # 3. OpenAI GPT-4oで初回挨拶生成
+        # 3. OpenAI GPT-4.1-miniで初回挨拶生成
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
         llm = ChatOpenAI(
-            model="gpt-4.1",
+            model="gpt-4.1-mini",
             temperature=1.0,
             api_key=api_key
         )

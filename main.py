@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from service.app.api.general_routes import router as general_router
 from service.app.api.langchain_routes import router as langchain_router
 from service.app.api.vision_routes import router as vision_router
-from service.app.api.screenshot_routes import router as screenshot_router
 
 load_dotenv()
 
@@ -32,7 +31,6 @@ app.add_middleware(
 app.include_router(general_router)
 app.include_router(langchain_router)
 app.include_router(vision_router)
-app.include_router(screenshot_router)
 
 @app.get('/')
 def read_root():

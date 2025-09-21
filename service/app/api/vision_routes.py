@@ -1,11 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from sqlalchemy.orm import Session
 import base64
 import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
+
+from ...modules.database import get_db
+from ...modules import crud
 
 load_dotenv()
 
@@ -39,6 +43,17 @@ class ProfileAnalysisResponse(BaseModel):
     status: str
     profile: ProfileData
     confidence: float
+
+
+class ChatScreenshotRequest(BaseModel):
+    image: str  # Single Base64 encoded image
+    userId: int
+    targetId: int
+
+
+class ChatScreenshotResponse(BaseModel):
+    status: str
+    message: Optional[str]  # The extracted latest female message
 
 
 @router.post("/analyze-profile", response_model=ProfileAnalysisResponse)
@@ -140,6 +155,97 @@ async def analyze_profile_image(request: ProfileImageRequest):
         raise HTTPException(
             status_code=500,
             detail=f"画像の解析中にエラーが発生しました: {str(e)}"
+        )
+
+
+@router.post("/analyze-chat")
+async def analyze_chat_screenshot(
+    request: ChatScreenshotRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    チャット画面のスクリーンショットから最新の女性メッセージを抽出
+    """
+    try:
+        print(request.image, 'request.image')
+        # ユーザーとターゲットの確認（認証目的のみ）
+        user = crud.get_user_by_id(db, user_id=request.userId)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        target = crud.get_target_by_id(db, target_id=request.targetId)
+        if not target:
+            raise HTTPException(status_code=404, detail="Target not found")
+
+        # プロンプトの準備
+        system_prompt = """あなたはマッチングアプリのチャット画面から最新の女性メッセージを抽出する専門家です。
+
+以下のJSON形式で返してください：
+{
+  "latestFemaleMessage": "最新の女性メッセージ内容" または null
+}
+
+重要な判定ルール：
+- 左側の吹き出しが女性（相手）のメッセージです
+- 右側の吹き出しは男性（自分）のメッセージです
+- 画面に表示されている最も下にある左側の吹き出し（女性メッセージ）のテキストのみを抽出してください
+- 女性のメッセージが画面に存在しない場合はnullを返してください
+
+注意事項：
+- 改行も保持
+- 絵文字も正確に抽出
+- タイムスタンプは無視
+- メッセージのみ抽出（プロフィール情報などは無視）"""
+
+        # 単一画像用のコンテンツを構築
+        user_content = [
+            {
+                "type": "text",
+                "text": "この画像から最新（最も下にある）の女性メッセージ（左側の吹き出し）を抽出してください。"
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": request.image,
+                    "detail": "high"
+                }
+            }
+        ]
+
+        # Vision APIを呼び出し
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": user_content
+                }
+            ],
+            temperature=0.3,
+            max_tokens=500,
+            response_format={"type": "json_object"}
+        )
+
+        # レスポンスの解析
+        extracted_data = json.loads(response.choices[0].message.content)
+        latest_female_message = extracted_data.get('latestFemaleMessage')
+        print(latest_female_message, 'latest_female_message')
+        return ChatScreenshotResponse(
+            status="success",
+            message=latest_female_message
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error analyzing chat screenshot: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"チャット画像の解析中にエラーが発生しました: {str(e)}"
         )
 
 
